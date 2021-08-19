@@ -1,11 +1,11 @@
 # Copyright (c) 2013 Shotgun Software Inc.
-# 
+#
 # CONFIDENTIAL AND PROPRIETARY
-# 
-# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit 
+#
+# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit
 # Source Code License included in this distribution package. See LICENSE.
-# By accessing, using, copying or modifying this work you indicate your 
-# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights 
+# By accessing, using, copying or modifying this work you indicate your
+# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights
 # not expressly granted therein are reserved by Shotgun Software Inc.
 
 import os
@@ -78,11 +78,11 @@ class SetupWindow(Hook):
     """
     Hook called when creating playblast
     """
-    
+
     def execute(self, action='', data=[], **kwargs):
         """
         Main hook entry point
-        
+
         :action:        String
                         hud_set             -> set required HUDs
                         hud_unset           -> removed added HUDs, restoring back to original setup
@@ -94,7 +94,7 @@ class SetupWindow(Hook):
                                    if pm.headsUpDisplay(f, query=True, visible=True)]
             # hide all visible HUDs
             map(lambda f: pm.headsUpDisplay(f, edit=True, visible=False), visibleHUDs)
-            
+
             # Add required HUD
             # User name
             editExistingHUD = 'HUDUserName' in pm.headsUpDisplay( listHeadsUpDisplays=True )
@@ -108,18 +108,18 @@ class SetupWindow(Hook):
                                command=lambda: cmds.file(query=True, location=True, shortName=True).rsplit(".", 1)[0],
                                event='playblasting', section=6, block=1 )
             pm.headsUpDisplay( 'HUDSceneName', edit=True, visible=True, label="Shot:" )
-            # Focal length            
+            # Focal length
             pm.headsUpDisplay( 'HUDFocalLength', edit=True, visible=True, section=3, block=1 )
             pm.headsUpDisplay( 'HUDCurrentFrame', edit=True, visible=True, dataFontSize="large", section=8, block=1 )
 
             return visibleHUDs
-            
+
         elif action == 'hud_unset':
             # restore HUD state
             map(lambda f: pm.headsUpDisplay(f, edit=True, visible=False), pm.headsUpDisplay(listHeadsUpDisplays=True))
             map(lambda f: pm.headsUpDisplay(f, edit=True, visible=True), data)
             return None
-            
+
         elif action == "playblast_params":
             PLAYBLAST_PARAMS["filename"] = data
             # include audio if available
@@ -127,7 +127,7 @@ class SetupWindow(Hook):
             if audioList:
                 PLAYBLAST_PARAMS["sound"] = audioList[0]
             return PLAYBLAST_PARAMS
-            
+
         elif action == "create_window":
             # setting up context window for playblast
             @contextmanager
@@ -154,7 +154,7 @@ class SetupWindow(Hook):
                 cameraList = [c.name() for c in pm.ls(type="camera", r=True) if re.search( camera_name_pattern, c.name() )]
                 if not "cam" in MODEL_EDITOR_PARAMS.keys() and cameraList:
                     MODEL_EDITOR_PARAMS["cam"] = cameraList[0]
-                    
+
                 # Give Viewport 2.0 renderer only for Maya 2015++
                 # mayaVersionString = cmds.about(version=True)
                 # mayaVersion = int(mayaVersionString[:4]) if len(mayaVersionString) >= 4 else 0
@@ -189,5 +189,26 @@ class SetupWindow(Hook):
                     pm.deleteUI(window)
 
             return createWindow
+        elif action == "generate_path":
+            fields = data["template_work"].get_fields(data["scene_name"])
+            # remove maya extension so that playblast default can be used
+            # this is in case the extension is parametrized in both templates
+            del fields["extension"]
+            fields["tag_render"] = "playblast"
+
+            playblastParams = data["params"]
+
+            # determine the extension from format
+            # the template can have a parametrized extension
+            if "format" in playblastParams:
+                if playblastParams["format"] == "image":
+                    fields["extension"] = playblastParams["compression"]
+                    fields["SEQ"] = "####"
+                elif playblastParams["format"] == "qt":
+                    fields["extension"] = "mov"
+                elif playblastParams["format"] == "avi":
+                    fields["extension"] = "avi"
+
+            return data["template_shot"].apply_fields(fields)
         else:
             self._app.log_info("nothing to work on")

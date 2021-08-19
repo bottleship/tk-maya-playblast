@@ -1,11 +1,11 @@
 # Copyright (c) 2013 Shotgun Software Inc.
-# 
+#
 # CONFIDENTIAL AND PROPRIETARY
-# 
-# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit 
+#
+# This work is provided "AS IS" and subject to the Shotgun Pipeline Toolkit
 # Source Code License included in this distribution package. See LICENSE.
-# By accessing, using, copying or modifying this work you indicate your 
-# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights 
+# By accessing, using, copying or modifying this work you indicate your
+# agreement to the Shotgun Pipeline Toolkit Source Code License. All rights
 # not expressly granted therein are reserved by Shotgun Software Inc.
 
 import os
@@ -19,18 +19,18 @@ import pprint
 import tank
 from tank import Hook
 
-from datetime import datetime 
+from datetime import datetime
 TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 class PostPlayblast(Hook):
     """
     Hook called when a file needs to be copied
     """
-    
+
     def execute(self, action="", data=[], **kwargs):
         """
         Main hook entry point
-        
+
         :action:        String
                         copy_file           -> copy QTfiles to locations in config
                         create_version      -> register a new Version entity in Shotgun or update existing Version
@@ -39,7 +39,7 @@ class PostPlayblast(Hook):
         # get the application and it's shotgun instance
         app=self.parent
         sg = app.sgtk.shotgun
-        
+
         if action == "copy_file":
             try:
                 # get all required template
@@ -49,7 +49,10 @@ class PostPlayblast(Hook):
                 # use current scene name to create valid QT file names
                 scenename = pm.sceneName()
                 fields = template_work.get_fields(scenename)
-                destination = [template_shot.apply_fields(fields), 
+                # extension is already correct for the local path
+                fields["extension"] = os.path.splitext(data)[-1].replace(".", "")
+
+                destination = [template_shot.apply_fields(fields),
                                template_sequence.apply_fields(fields)]
                 # make sure that destination folder is exists
                 for each in destination:
@@ -59,11 +62,11 @@ class PostPlayblast(Hook):
                 for each in destination:
                     shutil.copy(data, each)
             except:
-                print "Error in copying file %s" % data
+                print("Error in copying file {}".format(data))
             return True
 
         elif action == "create_version":
-            """ 
+            """
                 Setting up shotgun version entity without uploading the QT file
             """
             currentDatetime = datetime.now().strftime(TIMESTAMP_FORMAT)
@@ -74,7 +77,7 @@ class PostPlayblast(Hook):
                 username=os.environ.get("USERNAME", "unknown"),
                 hostname=os.environ.get("COMPUTERNAME", "unknown"))
             app.log_debug("Setting up shotgun version entity...")
-            
+
             try:
                 filters = [ ["Project", "is", data["project"]],
                             ["code", "is", data["code"]],
